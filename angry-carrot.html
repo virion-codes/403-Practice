@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Angry Carrot</title>
+  <style>
+    :root{
+      --bg: #f7f7f8;
+      --card: #ffffff;
+      --accent: #ff8a00;
+      --max-anger: 5;
+      --size: 360px;
+    }
+
+    *{box-sizing: border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #f0f7ff 0%, var(--bg) 100%);
+      color:#111;
+      padding:24px;
+    }
+
+    .card{
+      width: min(720px, 96vw);
+      background: linear-gradient(180deg, rgba(255,255,255,0.9), var(--card));
+      border-radius:18px;
+      padding:28px;
+      box-shadow: 0 10px 30px rgba(16,40,80,0.08);
+      display:grid;
+      gap:18px;
+      grid-template-columns: 1fr 320px;
+      align-items:center;
+    }
+
+    .intro{
+      padding-right:12px;
+    }
+
+    h1{
+      margin:0 0 6px 0;
+      font-size:24px;
+      letter-spacing:-0.2px;
+    }
+    p{margin:0;color:#555;line-height:1.45}
+
+    /* carrot area */
+    .stage{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      flex-direction:column;
+    }
+
+    .carrot-wrap{
+      width:var(--size);
+      height:var(--size);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      user-select:none;
+    }
+
+    /* make carrot interactive-looking */
+    .carrot{
+      cursor:pointer;
+      transition: transform 220ms cubic-bezier(.2,.9,.3,1), filter 220ms;
+      will-change: transform, filter;
+      outline: none;
+    }
+    .carrot:active{ transform: scale(.98); }
+
+    /* anger-level driven classes will be added to .carrot */
+    /* base styling for SVG parts is inlined in the SVG, but we change with css variables */
+    /* subtle floating */
+    .carrot-idle{
+      animation: float 3s ease-in-out infinite;
+      transform-origin: center;
+    }
+    @keyframes float{
+      0%{ transform: translateY(0) }
+      50%{ transform: translateY(-6px) }
+      100%{ transform: translateY(0) }
+    }
+
+    /* shake when very angry */
+    .shake{
+      animation: shake 140ms linear 6;
+    }
+    @keyframes shake{
+      0%{ transform: translateX(0) rotate(0deg) }
+      20%{ transform: translateX(-6px) rotate(-4deg) }
+      40%{ transform: translateX(6px) rotate(4deg) }
+      60%{ transform: translateX(-6px) rotate(-3deg) }
+      80%{ transform: translateX(6px) rotate(3deg) }
+      100%{ transform: translateX(0) rotate(0deg) }
+    }
+
+    .controls{ display:flex; gap:8px; align-items:center; justify-content:center; padding-top:6px; }
+    button{
+      background: #111827;
+      color: #fff;
+      border: none;
+      padding:8px 12px;
+      border-radius:10px;
+      font-size:14px;
+      cursor:pointer;
+      box-shadow: 0 6px 14px rgba(17,24,39,0.12);
+    }
+    button.secondary{
+      background: transparent;
+      color:#111;
+      border:1px solid rgba(17,24,39,0.06);
+      box-shadow:none;
+    }
+
+    /* anger meter */
+    .meter{
+      display:flex;
+      gap:6px;
+      align-items:center;
+      justify-content:center;
+    }
+    .meter .bar{
+      width:36px;
+      height:8px;
+      border-radius:6px;
+      background: rgba(17,24,39,0.06);
+      overflow:hidden;
+    }
+    .meter .bar > i{
+      display:block;
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, #ffd4a8, #ff8a00);
+      transition: width 300ms ease, background 300ms;
+    }
+    .hint{ font-size:13px; color:#666; text-align:center; }
+
+    /* tiny steam puffs that appear as anger increases */
+    .steam{
+      position:absolute;
+      top:8%;
+      right:8%;
+      width:120px;
+      height:120px;
+      pointer-events:none;
+      transform-origin:center;
+      transition: opacity 300ms;
+      opacity:0;
+    }
+    .steam .p{
+      opacity:0;
+      transform-origin:center;
+      transition: transform 400ms ease, opacity 400ms ease;
+    }
+    .anger-1 .steam{ opacity: 0.12; }
+    .anger-2 .steam{ opacity: 0.25; }
+    .anger-3 .steam{ opacity: 0.5; }
+    .anger-4 .steam{ opacity: 0.75; }
+    .anger-5 .steam{ opacity: 1; }
+    .anger-1 .steam .p{ transform: translateY(2px) scale(.95); opacity:1;}
+    .anger-2 .steam .p{ transform: translateY(-6px) scale(1.02); opacity:1;}
+    .anger-3 .steam .p{ transform: translateY(-14px) scale(1.08); opacity:1;}
+    .anger-4 .steam .p{ transform: translateY(-22px) scale(1.12); opacity:1;}
+    .anger-5 .steam .p{ transform: translateY(-34px) scale(1.18); opacity:1;}
+
+    /* responsive */
+    @media (max-width:760px){
+      .card{ grid-template-columns:1fr; text-align:center }
+      .intro{ padding-right:0 }
+      .carrot-wrap{ margin-top:4px }
+    }
+
+    /* small accessibility focus ring for keyboard */
+    .carrot:focus-visible{
+      box-shadow: 0 0 0 6px rgba(255,140,0,0.12), 0 6px 12px rgba(16,24,40,0.12);
+      border-radius: 18px;
+    }
+
+    footer{ grid-column: span 2; color:#777; font-size:13px; text-align:right; }
+    @media (max-width:760px){ footer{ text-align:center } }
+
+  </style>
+</head>
+<body>
+  <main class="card" aria-labelledby="h1">
+    <div class="intro">
+      <h1 id="h1">The Angry Carrot</h1>
+      <p>Meet Carl the Carrot. He starts off grumpy and gets more furious every time you click him. Watch his eyes narrow, his color deepen, and little puffs of steam appear from his leafy hair.</p>
+
+      <div style="margin-top:14px">
+        <div class="meter" aria-hidden="true">
+          <!-- 5 mini bars, JS will set widths -->
+          <div class="bar"><i id="meter-fill" style="width:0%"></i></div>
+        </div>
+        <div class="hint" id="hint">Click on the carrot to make him angrier!</div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <!-- Stage with carrot -->
+      <div class="carrot-wrap" aria-hidden="false">
+        <!-- Steam puffs (appear by CSS when anger classes applied to .carrot) -->
+        <svg class="steam" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <g fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path class="p" d="M10 80 C 18 68, 30 60, 46 62 C 64 64, 72 80, 88 78" stroke="rgba(120,120,120,0.18)"/>
+            <path class="p" d="M20 60 C 30 50, 44 46, 58 50 C 72 54, 78 66, 92 64" stroke="rgba(110,110,110,0.14)"/>
+            <path class="p" d="M6 40 C 18 34, 36 32, 48 36 C 62 40, 74 44, 88 42" stroke="rgba(90,90,90,0.12)"/>
+          </g>
+        </svg>
+
+        <!-- CARROT SVG -->
+        <svg id="carrot" class="carrot carrot-idle anger-0" viewBox="0 0 320 320" role="button" tabindex="0"
+             aria-pressed="false" aria-label="Angry carrot. Click to increase anger." width="100%" height="100%">
+          <!-- Shadow -->
+          <ellipse cx="160" cy="286" rx="84" ry="18" fill="rgba(0,0,0,0.06)"/>
+          <!-- carrot body -->
+          <g id="body" transform="translate(28,40)">
+            <path id="carrot-fill" d="M150 0 C 210 12 240 70 212 140 C 190 200 120 260 80 260 C 30 260 14 200 14 150 C 14 72 78 8 150 0 Z"
+                  fill="#ffb14c" stroke="#d86e00" stroke-width="4" stroke-linejoin="round"/>
+            <!-- leafy crown -->
+            <g id="leaves" transform="translate(88,-8)">
+              <path id="leaf1" d="M10 20 C 0 -10 50 -32 72 -6 C 90 12 54 28 10 20 Z" fill="#73c06b" stroke="#2e7d43" stroke-width="3"/>
+              <path id="leaf2" d="M28 14 C 36 -18 86 -24 110 6 C 132 34 100 40 28 14 Z" fill="#66b86b" stroke="#2e7d43" stroke-width="3"/>
+              <path id="leaf3" d="M-6 18 C -12 -6 -40 -20 -68 4 C -96 28 -54 40 -6 18 Z" fill="#60b066" stroke="#2e7d43" stroke-width="3"/>
+            </g>
+
+            <!-- face group -->
+            <g id="face" transform="translate(54,80)">
+              <!-- eyes -->
+              <g id="eyes" transform="translate(46,32)">
+                <ellipse class="eye left" cx="0" cy="0" rx="12" ry="14" fill="#fff"/>
+                <ellipse class="eye right" cx="64" cy="0" rx="12" ry="14" fill="#fff"/>
+                <circle class="pupil left" cx="0" cy="0" r="6" fill="#111"/>
+                <circle class="pupil right" cx="64" cy="0" r="6" fill="#111"/>
+                <!-- angry brows (we'll morph via JS) -->
+                <path id="brow-left" d="M -16 -18 Q -6 -30 6 -20" stroke="#222" stroke-width="6" stroke-linecap="round" fill="none"/>
+                <path id="brow-right" d="M 48 -20 Q 58 -32 72 -20" stroke="#222" stroke-width="6" stroke-linecap="round" fill="none"/>
+              </g>
+
+              <!-- mouth: we'll swap/morph path via JS -->
+              <g transform="translate(28,92)">
+                <path id="mouth" d="M10 20 Q48 36 86 20 Q48 60 10 20 Z" fill="#3b1d00" opacity="0.9" />
+                <!-- optional teeth when very angry -->
+                <path id="teeth" d="M26 12 L34 24 L42 12 L50 24 L58 12" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0"/>
+              </g>
+
+              <!-- cheeks / blush that appear when annoyed -->
+              <g id="cheeks" fill="#ffebd6" opacity="0">
+                <ellipse cx="0" cy="26" rx="10" ry="6"/>
+                <ellipse cx="88" cy="26" rx="10" ry="6"/>
+              </g>
+            </g>
+          </g>
+
+        </svg>
+      </div>
+
+      <div class="controls" aria-hidden="false">
+        <button id="calm" class="secondary" title="Reset anger">Reset</button>
+        <button id="enrage" title="Make him angrier without clicking carrot">Anger +1</button>
+      </div>
+    </div>
+
+    <footer>Tip: Use keyboard (Tab → Enter/Space) to poke the carrot. Max anger level is 5.</footer>
+  </main>
+
+  <script>
+    (function(){
+      const carrot = document.getElementById('carrot');
+      const meterFill = document.getElementById('meter-fill');
+      const hint = document.getElementById('hint');
+      const calmBtn = document.getElementById('calm');
+      const enrageBtn = document.getElementById('enrage');
+
+      let anger = 0;
+      const MAX = 5;
+
+      // helper to map anger -> percent
+      function angerPercent(level){
+        return Math.round((level / MAX) * 100);
+      }
+
+      // visual update based on anger level
+      function updateVisuals() {
+        // set meter
+        meterFill.style.width = angerPercent(anger) + '%';
+
+        // update aria
+        carrot.setAttribute('aria-pressed', anger > 0 ? "true" : "false");
+
+        // classes on svg control steam & some CSS animations
+        carrot.classList.remove('anger-0','anger-1','anger-2','anger-3','anger-4','anger-5');
+        carrot.classList.add('anger-' + anger);
+
+        // color deepens with anger: from light orange to saturated deep orange/red
+        // we'll calculate HSL-ish approach: hue 30 -> 12, saturation 95% -> 90% and lightness 62% -> 40%
+        const hue = 30 - (anger * 3.6); // 30 -> ~12
+        const lightness = 62 - (anger * 4.2); // 62 -> ~40
+        const sat = 85 + (anger * 2); // 85 -> ~95
+        const fillColor = `hsl(${hue} ${sat}% ${lightness}%)`;
+        document.getElementById('carrot-fill').setAttribute('fill', fillColor);
+
+        // stroke shade
+        const strokeColor = `hsl(${hue} ${Math.max(sat-30,30)}% ${Math.max(lightness-28,8)}%)`;
+        document.getElementById('carrot-fill').setAttribute('stroke', strokeColor);
+
+        // eyebrow and eye changes
+        const browL = document.getElementById('brow-left');
+        const browR = document.getElementById('brow-right');
+        const eyesLeft = document.querySelector('.eye.left');
+        const eyesRight = document.querySelector('.eye.right');
+        const pupils = document.querySelectorAll('.pupil');
+        const mouth = document.getElementById('mouth');
+        const teeth = document.getElementById('teeth');
+        const cheeks = document.getElementById('cheeks');
+
+        // eyebrows: neutral -> slanted down inward
+        if (anger === 0) {
+          browL.setAttribute('d', 'M -16 -18 Q -6 -30 6 -20');
+          browR.setAttribute('d', 'M 48 -20 Q 58 -32 72 -20');
+          eyesLeft.setAttribute('rx', 12);
+          eyesLeft.setAttribute('ry', 14);
+          eyesRight.setAttribute('rx', 12);
+          eyesRight.setAttribute('ry', 14);
+          pupils.forEach(p => p.setAttribute('r', 6));
+          mouth.setAttribute('d', 'M10 20 Q48 36 86 20 Q48 60 10 20 Z');
+          teeth.setAttribute('opacity', 0);
+          cheeks.setAttribute('opacity', 0);
+          carrot.style.filter = 'none';
+          hint.textContent = 'Click on the carrot to make him angrier!';
+        } else if (anger === 1) {
+          browL.setAttribute('d', 'M -16 -18 Q -4 -28 8 -22');
+          browR.setAttribute('d', 'M 48 -18 Q 60 -30 74 -18');
+          pupils.forEach(p => p.setAttribute('r', 5.5));
+          mouth.setAttribute('d', 'M12 22 Q48 30 84 22 Q48 52 12 22 Z');
+          cheeks.setAttribute('opacity', 0.08);
+          carrot.style.filter = 'saturate(1.05)';
+          hint.textContent = 'He got a little cranky... keep poking.';
+        } else if (anger === 2) {
+          browL.setAttribute('d', 'M -20 -12 Q -2 -34 14 -22');
+          browR.setAttribute('d', 'M 44 -24 Q 60 -42 80 -20');
+          pupils.forEach(p => p.setAttribute('r', 5));
+          mouth.setAttribute('d', 'M12 18 Q48 28 84 18 Q48 50 12 18 Z');
+          cheeks.setAttribute('opacity', 0.14);
+          carrot.style.filter = 'saturate(1.08)';
+          hint.textContent = "He looks properly annoyed.";
+        } else if (anger === 3) {
+          browL.setAttribute('d', 'M -26 -6 Q -6 -38 20 -24');
+          browR.setAttribute('d', 'M 36 -28 Q 58 -50 88 -18');
+          pupils.forEach(p => p.setAttribute('r', 4));
+          eyesLeft.setAttribute('rx', 10);
+          eyesLeft.setAttribute('ry', 10);
+          eyesRight.setAttribute('rx', 10);
+          eyesRight.setAttribute('ry', 10);
+          mouth.setAttribute('d', 'M8 12 Q48 10 88 12 Q48 48 8 12 Z'); // tighter, angry mouth
+          cheeks.setAttribute('opacity', 0.2);
+          teeth.setAttribute('opacity', 0.0);
+          carrot.style.filter = 'saturate(1.12) contrast(1.02)';
+          hint.textContent = "He's getting heated — steam appears!";
+        } else if (anger === 4) {
+          browL.setAttribute('d', 'M -28 0 Q -2 -46 24 -28');
+          browR.setAttribute('d', 'M 32 -32 Q 56 -58 92 -18');
+          pupils.forEach(p => p.setAttribute('r', 3.5));
+          eyesLeft.setAttribute('rx', 9);
+          eyesLeft.setAttribute('ry', 8);
+          eyesRight.setAttribute('rx', 9);
+          eyesRight.setAttribute('ry', 8);
+          mouth.setAttribute('d', 'M6 8 Q48 6 90 8 Q48 48 6 8 Z');
+          cheeks.setAttribute('opacity', 0.32);
+          teeth.setAttribute('opacity', 1);
+          carrot.style.filter = 'saturate(1.18) contrast(1.06)';
+          hint.textContent = "Full rage — he might shake!";
+        } else if (anger === 5) {
+          browL.setAttribute('d', 'M -34 6 Q -4 -56 34 -30');
+          browR.setAttribute('d', 'M 28 -36 Q 56 -66 98 -18');
+          pupils.forEach(p => p.setAttribute('r', 2.8));
+          eyesLeft.setAttribute('rx', 7);
+          eyesLeft.setAttribute('ry', 7);
+          eyesRight.setAttribute('rx', 7);
+          eyesRight.setAttribute('ry', 7);
+          mouth.setAttribute('d', 'M0 6 Q48 2 96 6 Q48 60 0 6 Z');
+          cheeks.setAttribute('opacity', 0.4);
+          teeth.setAttribute('opacity', 1);
+          carrot.style.filter = 'saturate(1.26) contrast(1.12) drop-shadow(0 12px 18px rgba(0,0,0,0.15))';
+          hint.textContent = "MAX ANGER: he's furious! He shakes violently.";
+        }
+
+        // animate a shake for higher anger levels
+        if (anger >= 4) {
+          carrot.classList.add('shake');
+          // remove shake class once done to allow retriggering
+          setTimeout(()=>carrot.classList.remove('shake'), 900);
+        }
+      }
+
+      // increment anger (caps at MAX)
+      function poke(){
+        if (anger < MAX) {
+          anger++;
+          updateVisuals();
+        } else {
+          // if already max, give a little wiggle and micro-feedback
+          carrot.classList.add('shake');
+          setTimeout(()=>carrot.classList.remove('shake'),400);
+        }
+      }
+
+      // keyboard accessibility: Space/Enter
+      carrot.addEventListener('keydown', function(e){
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          poke();
+        }
+      });
+
+      carrot.addEventListener('click', function(e){
+        poke();
+      });
+
+      calmBtn.addEventListener('click', function(){
+        anger = 0;
+        updateVisuals();
+      });
+
+      enrageBtn.addEventListener('click', function(){
+        poke();
+      });
+
+      // initialize visuals
+      updateVisuals();
+
+      // small progressive hint timeout (optional)
+      setTimeout(()=>{ if(anger===0) hint.textContent = "Poke him — he won't calm by himself." }, 4000);
+
+      // allow double click quickly to increase more quickly
+      carrot.addEventListener('dblclick', function(e){
+        // double-click gives +2
+        anger = Math.min(MAX, anger + 2);
+        updateVisuals();
+      });
+
+      // for fun: if user holds mouse down for a bit increase repeatedly
+      let holdInterval = null;
+      carrot.addEventListener('pointerdown', function(e){
+        if (holdInterval) clearInterval(holdInterval);
+        holdInterval = setInterval(()=>{ anger = Math.min(MAX, anger + 1); updateVisuals(); }, 500);
+      });
+      document.addEventListener('pointerup', function(){
+        if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+      });
+
+    })();
+  </script>
+</body>
+</html>
