@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>The button Element</h1>
+    <button type="button" onclick="sortIt();">Best</button>
+    <script>
+    function sortIt()
+    {
+        let bContinue = prompt("Do you want to enter a movie rating?").toUpperCase();
+
+        let aiRatings = [];
+
+        while (bContinue === "Y")
+        {
+            let iRating = parseInt(prompt("Enter a movie rating: "));
+            aiRatings.push(iRating);
+            
+            bContinue = prompt("Do you want to enter another movie rating?").toUpperCase();
+        }
+        aiRatings.sort( (a,b)=>{
+            if (a < b)
+                return 1
+            else if (a > b)
+                return -1
+            else 
+                return 0
+        });
+        
+        console.log(aiRatings);
+    }
+    </script>
+</body>
+</html>
